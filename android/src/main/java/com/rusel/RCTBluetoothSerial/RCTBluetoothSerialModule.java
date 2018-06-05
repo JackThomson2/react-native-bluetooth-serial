@@ -402,7 +402,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
      * Clear data in buffer
      */
     public void clear(Promise promise) {
-        mBuffer.setLength(0);
+        arrays.clear();
         promise.resolve(true);
     }
 
