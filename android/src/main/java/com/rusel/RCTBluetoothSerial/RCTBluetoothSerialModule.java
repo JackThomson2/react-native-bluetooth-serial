@@ -1,9 +1,5 @@
 package com.rusel.RCTBluetoothSerial;
 
-import java.lang.reflect.Method;
-import java.util.Set;
-import javax.annotation.Nullable;
-
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -13,18 +9,25 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
 import android.util.Log;
-import android.util.Base64;
 
 import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.LifecycleEventListener;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.Arguments;
-import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.WritableArray;
-import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import javax.annotation.Nullable;
 
 import static com.rusel.RCTBluetoothSerial.RCTBluetoothSerialPackage.TAG;
 
@@ -52,6 +55,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
     private ReactApplicationContext mReactContext;
 
     private StringBuffer mBuffer = new StringBuffer();
+    private List<Byte> arrays = new ArrayList<Byte>();
 
     // Promises
     private Promise mEnabledPromise;
@@ -359,9 +363,9 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
     /**
      * Write to device over serial port
      */
-    public void writeToDevice(String message, Promise promise) {
-        if (D) Log.d(TAG, "Write " + message);
-        byte[] data = Base64.decode(message, Base64.DEFAULT);
+    public void writeToDevice(ReadableArray info, Promise promise) {
+        byte data[] = new byte[info.size()];
+        for(int i = 0; i < info.size(); i++) data[i] = (byte)info.getInt(i);
         mBluetoothService.write(data);
         promise.resolve(true);
     }
@@ -375,10 +379,13 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
      */
     public void readFromDevice(Promise promise) {
         if (D) Log.d(TAG, "Read");
-        int length = mBuffer.length();
-        String data = mBuffer.substring(0, length);
-        mBuffer.delete(0, length);
-        promise.resolve(data);
+        WritableArray promiseArray=Arguments.createArray();
+        for (int i = 0; i < arrays.size(); i++) {
+            byte anArr = arrays.get(i);
+            promiseArray.pushInt((short) anArr);
+        }
+        arrays.clear();
+        promise.resolve(promiseArray);
     }
 
     @ReactMethod
@@ -475,8 +482,8 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule impleme
      * Handle read
      * @param data Message
      */
-    void onData (String data) {
-        mBuffer.append(data);
+    void onData (byte[] data, int count) {
+        for (int i = 0; i < count; i++) arrays.add(data[i]);
         String completeData = readUntil(this.delimiter);
         if (completeData != null && completeData.length() > 0) {
             WritableMap params = Arguments.createMap();
